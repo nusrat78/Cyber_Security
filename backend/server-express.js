@@ -263,16 +263,24 @@ function validatePasswordStrength(password) {
 
 async function sendEmail(to, subject, text) {
     try {
-        await emailTransporter.sendMail({
-            from: process.env.EMAIL_FROM || "noreply@example.com",
-            to,
-            subject,
-            text,
-        });
-        console.log(`✓ Email sent to ${to}`);
+        if (process.env.SMTP_HOST) {
+            await emailTransporter.sendMail({
+                from: process.env.EMAIL_FROM || "noreply@example.com",
+                to,
+                subject,
+                text,
+            });
+            console.log(`✓ Email sent to ${to}`);
+        } else {
+            console.log(`\n--- MOCK EMAIL ---`);
+            console.log(`To: ${to}`);
+            console.log(`Subject: ${subject}`);
+            console.log(`Body:\n${text}`);
+            console.log(`------------------\n`);
+        }
         return true;
     } catch (err) {
-        console.error("Email error:", err);
+        console.error("Email error:", err.message);
         return false;
     }
 }

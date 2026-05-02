@@ -1,97 +1,149 @@
-# Secure Login Demo - Node.js + SQLite
+# Secure Login System - Express.js + SQLite + 2FA
 
 ## 🎯 Project Overview
 
-Complete authentication system with:
-- **Frontend**: Pure HTML, CSS, JavaScript (no frameworks)
-- **Backend**: Core Node.js (no Express)
-- **Database**: SQLite (file-based, no server needed)
-- **Security**: bcrypt password hashing
+Enterprise-grade authentication system with:
+
+- **Frontend**: Pure HTML, CSS, JavaScript (vanilla - no frameworks)
+- **Backend**: Express.js + Node.js
+- **Database**: SQLite (file-based, in-memory compatible)
+- **Security**:
+  - bcrypt password hashing
+  - Two-Factor Authentication (2FA) with Google Authenticator
+  - CSRF protection
+  - Rate limiting & account lockout
+  - Device tracking
+  - Password recovery & reset
+  - Secure session management
 
 ## 📁 Project Structure
 
 ```
-cyber_project/
-├── frontend/                 # Frontend application
-│   ├── index.html           # Router - Redirects to login.html
-│   ├── login.html           # Login page
-│   ├── register.html        # Register page
-│   ├── styles.css           # Shared styling
-│   └── script.js            # Form logic + MongoDB API calls
+Cyber_Security/
+├── frontend/                    # Frontend application
+│   ├── index.html              # Landing page
+│   ├── login.html              # Login with 2FA
+│   ├── register.html           # Registration with 2FA setup
+│   ├── dashboard.html          # User dashboard (profile, settings)
+│   ├── secure-script.js        # Authentication & form handling
+│   └── secure-styles.css       # Styling
 │
-├── backend/                  # Node.js backend
-│   └── server.js            # HTTP server + MongoDB integration
+├── backend/                     # Express.js backend
+│   ├── server-express.js       # Main server file
+│   └── auth.db                 # SQLite database (auto-created)
 │
-├── package.json             # Node.js dependencies
-├── package-lock.json        # Dependency lock file
-└── README.md                # This file
+├── package.json                # Dependencies
+└── README.md                    # This file
 ```
 
-## ✨ Frontend Features
+## ✨ Features
 
-✅ Single page with Login & Register forms
-✅ Smooth form switching with animations
-✅ Real-time input validation
-✅ Password strength indicator
-✅ Show/Hide password toggle
-✅ Responsive design (mobile & desktop)
-✅ Error message display
-✅ Success feedback
-✅ Ready to integrate with backend
+### Authentication
 
-See `index.html`, `styles.css`, and `script.js` for the complete frontend implementation.
+✅ User registration with email validation
+✅ Secure login with 2FA (Google Authenticator/Authy)
+✅ Password hashing with bcrypt (12 rounds)
+✅ Rate limiting (3 attempts, 15 min lockout)
+✅ Device tracking & device recognition
+✅ Persistent sessions with token-based auth
+
+### User Dashboard
+
+✅ View profile (username & email)
+✅ Change password securely
+✅ Enable/Disable 2FA
+✅ Change 2FA settings anytime
+✅ Logout functionality
+
+### Security
+
+✅ Email notifications on successful login
+✅ Password recovery via email
+✅ Password reset with secure tokens
+✅ CSRF protection
+✅ Input validation & sanitization
+✅ XSS prevention
+✅ Session timeout (30 minutes)
+✅ Account lockout after failed attempts
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-Just Node.js - that's it! SQLite comes built-in with the `better-sqlite3` package.
+- Node.js (v14+)
+- npm
 
 ### Setup & Installation
 
-1. **Install dependencies:**
+1. **Navigate to project directory:**
+
 ```bash
-cd cyber_project
+cd Cyber_Security
+```
+
+1. **Install dependencies:**
+
+```bash
 npm install
 ```
 
-2. **Start the server:**
+1. **Start the server:**
+
 ```bash
 npm start
 ```
 
-3. **Open in browser:**
+1. **Open in browser:**
+
 ```
-http://localhost:3000
+http://localhost:8080/
 ```
 
-That's it! The SQLite database will be created automatically. 🎉
+The SQLite database will be created automatically on first run. 🎉
 
-### What Happens
+### What Happens on First Run
 
-When you first run `npm start`:
-- SQLite database file `backend/auth.db` is created
-- `users` table is automatically created
-- Server starts and listens on `http://localhost:3000`
+- SQLite database `backend/auth.db` is created
+- Database tables are initialized:
+  - `users` - User accounts
+  - `sessions` - Active sessions
+  - `login_devices` - Trusted devices
+  - `login_history` - Login logs
+  - `password_resets` - Reset tokens
+  - `pending_registrations` - Incomplete registrations
+- Server starts on `http://localhost:8080`
 
 ### Troubleshooting
 
-**Port 3000 already in use?**
-- Edit `backend/server.js` line 18 to change PORT
+**Port 8080 already in use?**
 
-**Dependencies not installed?**
+```bash
+# Edit backend/server-express.js line 23
+# Change: const PORT = 8080;
+# To your preferred port
+```
+
+**Dependencies not working?**
+
 ```bash
 rm -rf node_modules package-lock.json
 npm install
 ```
 
 **Database corrupted?**
-- Simply delete `backend/auth.db` file
-- It will be recreated on next server start
+
+```bash
+# Delete the database file and restart
+rm backend/auth.db
+npm start
+```
 
 ## 🔗 API Endpoints
 
-### Register User (Step 1: Setup 2FA)
+### Authentication
+
+**Register User**
+
 ```
 POST /api/register
 Content-Type: application/json
@@ -114,7 +166,8 @@ Response (200):
 }
 ```
 
-### Complete Registration (Step 2: Verify OTP)
+**Complete Registration (Verify 2FA)**
+
 ```
 POST /api/register/verify-2fa
 Content-Type: application/json
@@ -128,11 +181,12 @@ Request:
 Response (201):
 {
   "ok": true,
-  "message": "Registration complete. You can now log in with OTP."
+  "message": "Registration complete. You can now log in."
 }
 ```
 
-### Login User (OTP Required Every Login)
+**Login User**
+
 ```
 POST /api/login
 Content-Type: application/json
@@ -140,7 +194,8 @@ Content-Type: application/json
 Request:
 {
   "username": "john_doe",
-  "password": "Password123!"
+  "password": "Password123!",
+  "deviceId": "<device-id>"
 }
 
 Response (200):
@@ -148,19 +203,20 @@ Response (200):
   "ok": true,
   "message": "Enter 2FA code",
   "requires2FA": true,
-  "sessionToken": "<session-token>",
+  "sessionToken": "<token>",
   "csrfToken": "<csrf-token>"
 }
 ```
 
-### Verify Login OTP
+**Verify 2FA Code**
+
 ```
 POST /api/verify-2fa
 Content-Type: application/json
 
 Request:
 {
-  "sessionToken": "<session-token>",
+  "sessionToken": "<token>",
   "code": "123456"
 }
 
@@ -176,209 +232,562 @@ Response (200):
 }
 ```
 
-### Health Check
+### User Profile & Settings
+
+**Get User Profile** (Requires Auth)
+
+```
+GET /api/profile
+Authorization: Bearer <sessionToken>
+
+Response (200):
+{
+  "ok": true,
+  "username": "john_doe",
+  "email": "john@example.com",
+  "two_factor_enabled": true
+}
+```
+
+**Logout** (Requires Auth)
+
+```
+POST /api/logout
+Authorization: Bearer <sessionToken>
+
+Response (200):
+{
+  "ok": true,
+  "message": "Logged out successfully"
+}
+```
+
+**Change Password** (Requires Auth)
+
+```
+POST /api/change-password
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+
+Request:
+{
+  "currentPassword": "Password123!",
+  "newPassword": "NewPassword456!"
+}
+
+Response (200):
+{
+  "ok": true,
+  "message": "Password updated successfully"
+}
+```
+
+### 2FA Management
+
+**Setup 2FA** (Requires Auth)
+
+```
+POST /api/setup-2fa
+Authorization: Bearer <sessionToken>
+
+Response (200):
+{
+  "ok": true,
+  "secret": "<base32-secret>",
+  "qrCode": "data:image/png;base64,..."
+}
+```
+
+**Enable 2FA** (Requires Auth)
+
+```
+POST /api/enable-2fa
+Authorization: Bearer <sessionToken>
+Content-Type: application/json
+
+Request:
+{
+  "secret": "<base32-secret>",
+  "code": "123456"
+}
+
+Response (200):
+{
+  "ok": true,
+  "message": "2FA enabled successfully"
+}
+```
+
+### Password Recovery
+
+**Forgot Password**
+
+```
+POST /api/forgot-password
+Content-Type: application/json
+
+Request:
+{
+  "email": "john@example.com"
+}
+
+Response (200):
+{
+  "ok": true,
+  "message": "If account exists, reset link sent to email"
+}
+```
+
+**Reset Password**
+
+```
+POST /api/reset-password
+Content-Type: application/json
+
+Request:
+{
+  "token": "<reset-token>",
+  "newPassword": "NewPassword456!",
+  "confirmPassword": "NewPassword456!"
+}
+
+Response (200):
+{
+  "ok": true,
+  "message": "Password reset successful. Please log in."
+}
+```
+
+### Utility
+
+**Health Check**
+
 ```
 GET /api/health
 
 Response (200):
 {
   "ok": true,
-  "message": "Server is running",
+  "message": "Server running",
   "db": true
 }
 ```
 
 ## 🔐 Security Features
 
-✅ **Password Hashing**: bcrypt with 10 salt rounds
-✅ **Input Validation**: Both frontend and backend
-✅ **Input Sanitization**: Basic XSS prevention
-✅ **Email Format Validation**: RFC-compliant regex
-✅ **CORS Support**: Configured for frontend requests
-✅ **No Plain Text Passwords**: Never stored or logged
+### Authentication & Authorization
 
-## 🔒 Backend Files Explanation
+- ✅ **bcrypt Hashing**: 12 salt rounds for password security
+- ✅ **Session Management**: Token-based with 30-minute timeout
+- ✅ **CSRF Protection**: Token validation on state-changing requests
+- ✅ **Two-Factor Authentication**: Time-based OTP (TOTP) with Google Authenticator
+- ✅ **Device Tracking**: Remember trusted devices
+- ✅ **Rate Limiting**: 3 failed login attempts → 15-minute lockout
 
-**backend/server.js**: Core Node.js HTTP server that:
-- Uses Node.js built-in `http` module (NO Express)
-- Connects to SQLite database (`backend/auth.db`)
-- Handles authentication endpoints:
-  - `POST /api/register` - Register new user
-  - `POST /api/login` - User login
-  - `GET /api/health` - Health check
-- Implements bcrypt password hashing (10 salt rounds)
-- Serves static frontend files
-- Includes CORS headers for cross-origin requests
+### Data Protection
 
-### How It Works
+- ✅ **Input Validation**: Both frontend and backend validation
+- ✅ **Input Sanitization**: XSS and HTML injection prevention
+- ✅ **Email Validation**: RFC-compliant format checking
+- ✅ **SQL Injection Prevention**: Parameterized queries
+- ✅ **Password Requirements**: Min 8 chars, uppercase, lowercase, numbers, symbols
 
-1. **Registration Flow**:
-   - Frontend sends: `{ username, email, password }`
-   - Backend validates inputs
-   - Passwords are hashed with bcrypt (never stored plain text)
-   - User saved to SQLite database
-   - Returns: `{ ok: true, userId }`
+### User Privacy
 
-2. **Login Flow**:
-   - Frontend sends: `{ email, password }`
-   - Backend finds user in SQLite
-   - Compares password with bcrypt hash
-   - Updates last login time
-   - Returns: `{ ok: true, user: { id, username, email } }`
+- ✅ **Secure Password Reset**: Time-limited tokens (1 hour)
+- ✅ **No Plain Text Storage**: All passwords hashed
+- ✅ **Login Notifications**: Email alerts on successful authentication
+- ✅ **Login History**: Track all login attempts
+- ✅ **Session Tracking**: Monitor active sessions
+- ✅ **Secure Logout**: Server-side session invalidation
 
-### SQLite Database Schema
+### HTTP Security
 
-The database file is `backend/auth.db` with a `users` table:
+- ✅ **Security Headers**: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
+- ✅ **HSTS**: Strict-Transport-Security for HTTPS
+- ✅ **CSP**: Content-Security-Policy headers
+- ✅ **CORS**: Properly configured cross-origin requests
+
+## �️ Backend Implementation
+
+### Architecture
+
+- **Framework**: Express.js (lightweight, flexible)
+- **Database**: SQLite with sql.js (in-memory or file-based)
+- **Authentication**: JWT-style tokens + Session management
+- **2FA**: TOTP (Time-based One-Time Password)
+- **Email**: Nodemailer (with mock email fallback)
+
+### File: `backend/server-express.js`
+
+The main server file that handles:
+
+- **Express middleware**: CORS, JSON parsing, security headers
+- **Database initialization**: Creates tables on startup
+- **Authentication routes**: Register, login, verify 2FA
+- **Protected routes**: Profile, logout, password change
+- **2FA setup**: Generate QR codes and secrets
+- **Password recovery**: Reset tokens and email
+- **Device tracking**: Remember and manage trusted devices
+- **Rate limiting**: Lockout after failed attempts
+- **Email notifications**: Login alerts (with mock fallback)
+
+### Database Schema
+
+**Users Table**
 
 ```sql
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  password TEXT NOT NULL,          -- bcrypt hash
+  two_factor_secret TEXT,          -- base32 encoded
+  two_factor_enabled INTEGER,      -- 0 or 1
+  failed_attempts INTEGER,         -- for rate limiting
+  locked_until DATETIME,           -- lockout expiry
+  password_changed_at DATETIME,
+  created_at DATETIME,
   last_login DATETIME
 )
 ```
 
-### View Database
+**Sessions Table**
 
-**Using SQLite CLI:**
-```bash
-# Open database
-sqlite3 backend/auth.db
-
-# View all users
-SELECT id, username, email, created_at, last_login FROM users;
-
-# View specific user
-SELECT * FROM users WHERE email = 'john@example.com';
-
-# Exit
-.exit
+```sql
+CREATE TABLE sessions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  session_token TEXT UNIQUE,
+  csrf_token TEXT UNIQUE,
+  device_id TEXT,
+  expires_at DATETIME,
+  created_at DATETIME
+)
 ```
 
-**Using DB Browser for SQLite:**
-1. Download: https://sqlitebrowser.org
-2. Open: `backend/auth.db`
-3. Browse tables and data visually
+**Login Devices Table**
 
-## 📝 Frontend Customization
+```sql
+CREATE TABLE login_devices (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  device_id TEXT UNIQUE,
+  device_name TEXT,
+  device_type TEXT,
+  last_seen DATETIME,
+  is_trusted INTEGER,
+  ip_address TEXT,
+  user_agent TEXT
+)
+```
 
-All frontend files are in the `frontend/` folder. To customize:
+**Login History Table**
 
-1. **Change Colors**: Edit `frontend/styles.css` (gradient, buttons, etc.)
-2. **Change Icons**: Edit emojis in `frontend/login.html` and `frontend/register.html`
-3. **Add Fields**: Add input groups in the respective HTML file and validation in `frontend/script.js`
-4. **Modify Styling**: All CSS is in one file, easy to customize
-5. **Add New Pages**: Create new HTML files in `frontend/` folder and update `frontend/index.html` routing if needed
+```sql
+CREATE TABLE login_history (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  ip_address TEXT,
+  user_agent TEXT,
+  success INTEGER,
+  login_time DATETIME
+)
+```
 
-## 🧪 Testing
+### Key Functions
 
-### Frontend Testing
-1. Test all form fields with valid and invalid inputs
-2. Test password strength indicator on register page
-3. Test show/hide password toggle
-4. Test navigation between login and register pages
-5. Test on mobile and desktop
+**Authentication Middleware**
 
-### Backend Testing with cURL
+```javascript
+authenticateUser(req, res, next)
+- Validates Authorization header
+- Checks session token validity
+- Verifies session expiration
+- Attaches user ID to request
+```
+
+**Password Hashing**
+
+```javascript
+bcrypt.hash(password, 12)        // Secure hashing
+bcrypt.compare(input, hash)      // Safe comparison
+```
+
+**TOTP Generation & Verification**
+
+```javascript
+speakeasy.generateSecret()       // Create 2FA secret
+speakeasy.totp.verify()          // Verify OTP codes
+```
+
+### Email Notifications
+
+**Login Notification Email**
+When a user logs in successfully:
+
+- Recipient: User's registered email
+- Subject: "Login Notification"
+- Content: IP address, timestamp, security warning
+
+**Mock Email Mode** (when SMTP not configured):
+
+- Logs email content to console
+- Shows: To, Subject, Body
+- Useful for development without email server
+
+**Enable Real Emails**:
+Set environment variables:
+
+```bash
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=your@gmail.com
+export SMTP_PASS=your_app_password
+export EMAIL_FROM=your@gmail.com
+```
+
+## 🎨 Frontend Pages
+
+### Landing Page (`index.html`)
+
+- Welcome message
+- Links to Login and Register pages
+
+### Login Page (`login.html`)
+
+- Username/email input
+- Password input with show/hide toggle
+- 2FA verification form
+- Password recovery form
+- Device remember option
+- Form validation
+
+### Register Page (`register.html`)
+
+- Username, email, password inputs
+- Password strength indicator
+- 2FA setup with QR code
+- OTP verification
+
+### Dashboard Page (`dashboard.html`)
+
+- **Profile Section**: View username and email
+- **Security Section**:
+  - View 2FA status
+  - Enable/Change 2FA
+- **Password Section**: Change password securely
+- **Logout Button**: Secure session termination
+
+### Styling
+
+- **File**: `frontend/secure-styles.css`
+- Responsive design (mobile & desktop)
+- Beautiful gradient backgrounds
+- Smooth animations
+- Dark theme with accent colors
+
+## 🎯 Customization
+
+To customize the frontend:
+
+1. **Colors & Theme**: Edit CSS variables in `secure-styles.css`
+2. **Icons**: Change emojis in HTML files (e.g., 🔐 → 🔒)
+3. **Messages**: Update text in HTML files and `secure-script.js`
+4. **Logo**: Add your own logo to `index.html`
+5. **Email Messages**: Edit email content in `backend/server-express.js`
+
+## 🧪 Testing the Application
+
+### Manual Testing Flow
+
+1. **Start the server:**
+
+```bash
+npm start
+```
+
+1. **Open in browser:**
+
+```
+http://localhost:8080/
+```
+
+1. **Test Registration:**
+   - Click "Create Account"
+   - Enter username, email, password
+   - Scan QR code with Google Authenticator/Authy
+   - Enter the 6-digit code
+   - Account created ✓
+
+2. **Test Login:**
+   - Enter username and password
+   - Enter 2FA code from authenticator
+   - Redirected to dashboard ✓
+
+3. **Test Dashboard:**
+   - View profile information ✓
+   - Change password ✓
+   - Change 2FA settings ✓
+   - Click Logout ✓
+
+4. **Test Email Notifications:**
+   - Check server console for login notification emails
+   - (Or configure SMTP to send real emails)
+
+### API Testing with cURL
 
 ```bash
 # Health check
-curl http://localhost:3000/api/health
+curl http://localhost:8080/api/health
 
-# Register a user
-curl -X POST http://localhost:3000/api/register \
+# Register user
+curl -X POST http://localhost:8080/api/register \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "john_doe",
-    "email": "john@example.com",
-    "password": "Password123!"
+    "username": "test_user",
+    "email": "test@example.com",
+    "password": "TestPass123!"
   }'
 
-# Login with registered user
-curl -X POST http://localhost:3000/api/login \
+# Login
+curl -X POST http://localhost:8080/api/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "john@example.com",
-    "password": "Password123!"
+    "username": "test_user",
+    "password": "TestPass123!"
   }'
 
-# Try login with wrong password (should fail)
-curl -X POST http://localhost:3000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john@example.com",
-    "password": "WrongPassword"
-  }'
+# Get profile (requires auth)
+curl -H "Authorization: Bearer <SESSION_TOKEN>" \
+  http://localhost:8080/api/profile
+
+# Logout (requires auth)
+curl -X POST \
+  -H "Authorization: Bearer <SESSION_TOKEN>" \
+  http://localhost:8080/api/logout
 ```
 
-### View Database with SQLite
+## 📂 Database Viewing
 
-**Option 1: Command Line**
+### Using SQLite CLI
+
 ```bash
-# Open SQLite database
+# Open the database
 sqlite3 backend/auth.db
 
-# List all tables
+# View all tables
 .tables
 
 # View all users
 SELECT id, username, email, created_at, last_login FROM users;
 
-# View specific user's email
-SELECT email, created_at FROM users WHERE username = 'john_doe';
+# View login history
+SELECT user_id, ip_address, success, login_time FROM login_history;
 
 # Exit
 .exit
 ```
 
-**Option 2: DB Browser GUI**
-1. Download: https://sqlitebrowser.org/
-2. File → Open → `cyber_project/backend/auth.db`
-3. Click on "users" table
-4. Browse all registered users and their data
-5. See hashed passwords and timestamps
+### Using DB Browser GUI
+
+1. Download: <https://sqlitebrowser.org/>
+2. Open: `backend/auth.db`
+3. Browse tables and data visually
+4. View user records, session tokens, login history, devices, etc.
 
 ## 📱 Browser Support
 
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
-- Mobile browsers
+- ✅ Chrome/Edge (latest)
+- ✅ Firefox (latest)
+- ✅ Safari (latest)
+- ✅ Mobile browsers (iOS Safari, Chrome Mobile)
 
-## 📝 Frontend Files Explanation
+## 📚 Dependencies
 
-All frontend files are in the `frontend/` folder:
+Core dependencies in `package.json`:
 
-**index.html**: Router file that acts as the entry point:
-- Automatically redirects to login.html
-- Can be customized for additional routing logic
+| Package | Version | Purpose |
+|---------|---------|---------|
+| express | 4.18.2 | Web framework |
+| bcrypt | 6.0.0 | Password hashing |
+| speakeasy | 2.0.0 | TOTP generation |
+| qrcode | 1.5.3 | QR code generation |
+| sql.js | 1.8.0 | SQLite database |
+| nodemailer | 8.0.7 | Email sending |
 
-**login.html**: Complete login page with:
-- Email/Username input
-- Password input with show/hide toggle
-- Remember me checkbox
-- Forgot password link
-- Navigation link to register page
+## 🚀 Deployment Notes
 
-**register.html**: Complete registration page with:
-- Username input
-- Email input  
-- Password input with strength indicator
-- Confirm password field
-- Navigation link to login page
+### Production Checklist
 
-**styles.css**: Provides:
-- Beautiful purple gradient background
-- Animated stars and forest silhouettes
-- Responsive layout
-- Mobile-friendly design
-- Hover and focus effects
+- [ ] Set strong `SESSION_TIMEOUT` (currently 30 min)
+- [ ] Configure SMTP environment variables for real emails
+- [ ] Use HTTPS in production (modify CSP header)
+- [ ] Set secure cookie flags
+- [ ] Enable HSTS header
+- [ ] Rate limit public endpoints
+- [ ] Monitor login attempts and suspicious activity
+- [ ] Regular database backups
+- [ ] Keep dependencies updated
+
+### Environment Variables
+
+```bash
+# SMTP Configuration (optional, uses mock email if not set)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+EMAIL_FROM=noreply@yoursite.com
+
+# Server Config (optional)
+PORT=8080
+HOST=127.0.0.1
+```
+
+## 📞 Support & Troubleshooting
+
+### Common Issues
+
+**Q: "Port 8080 already in use"**
+A: Change PORT in `backend/server-express.js` line 23
+
+**Q: "Cannot find module 'speakeasy'"**
+A: Run `npm install` to install all dependencies
+
+**Q: "Database is locked"**
+A: Delete `backend/auth.db` and restart the server
+
+**Q: "Email not sending"**
+A: Check SMTP credentials or use mock email mode (default)
+
+**Q: "2FA code not working"**
+A: Ensure your device time is synchronized
+B: Try TOTP with 2-second window tolerance (default)
+
+**Q: "Session token expired"**
+A: Login again. Session timeout is 30 minutes by default
+
+## 📄 License
+
+This project is open source and available for educational purposes.
+
+## 🎓 Learning Resources
+
+- [bcrypt Documentation](https://github.com/kelektiv/node.bcrypt.js)
+- [Speakeasy TOTP](https://github.com/speakeasyjs/speakeasy)
+- [Express.js Guide](https://expressjs.com/)
+- [SQLite Best Practices](https://www.sqlite.org/bestpractice.html)
+- [OWASP Security Guidelines](https://owasp.org/www-project-top-ten/)
+
+---
+
+Built with ❤️ for secure authentication
+
 - Password strength color coding
 
 **script.js**: Includes:
+
 - Form validation logic (used by both pages)
 - Password strength calculator
 - Show/hide password toggle
