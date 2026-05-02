@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Secure Dashboard - Enterprise Security</title>
+        <link rel="stylesheet" href="secure-styles.css" />
+        <style>
+            .dashboard-wrapper {
+                margin: 50px auto;
+                max-width: 800px;
+                background: var(--surface-color);
+                padding: 30px;
+                border-radius: 12px;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid var(--border-color);
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+            .header button {
+                background-color: var(--danger-color, #e74c3c);
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+            .profile-info {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+            .card {
+                background: rgba(255, 255, 255, 0.05);
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+            }
+            .card h3 {
+                margin-top: 0;
+                color: var(--primary-color);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Background -->
+            <div class="background">
+                <div class="stars"></div>
+                <div class="forest"></div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="form-container" style="max-width: 800px">
+                <div class="form-section active">
+                    <div class="header">
+                        <h1>🔐 Secure Dashboard</h1>
+                        <button onclick="handleLogout()">Logout</button>
+                    </div>
+
+                    <div class="profile-info">
+                        <div class="card">
+                            <h3>Profile</h3>
+                            <p>
+                                <strong>Username:</strong>
+                                <span id="dash-username">Loading...</span>
+                            </p>
+                            <p>
+                                <strong>Email:</strong>
+                                <span id="dash-email">Loading...</span>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Security</h3>
+                            <p>
+                                <strong>2FA Status:</strong>
+                                <span id="dash-2fa">Loading...</span>
+                            </p>
+                            <button
+                                class="submit-btn"
+                                style="margin-top: 10px; padding: 10px"
+                                onclick="enable2FAFromDashboard()"
+                                id="btn-enable-2fa"
+                                style="display: none"
+                            >
+                                Enable 2FA
+                            </button>
+                        </div>
+                        <div class="card" style="grid-column: 1 / -1">
+                            <h3>Change Password</h3>
+                            <div class="form-group" style="margin-bottom: 10px">
+                                <input
+                                    type="password"
+                                    id="current-password"
+                                    placeholder="Current Password"
+                                />
+                            </div>
+                            <div class="form-group" style="margin-bottom: 10px">
+                                <input
+                                    type="password"
+                                    id="new-password"
+                                    placeholder="New Password"
+                                />
+                            </div>
+                            <button
+                                class="submit-btn"
+                                style="padding: 10px"
+                                onclick="handleChangePassword()"
+                            >
+                                Update Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section" id="setup-2fa-form">
+                    <h1>🔐 Two-Factor Authentication</h1>
+                    <div class="qr-code-container">
+                        <img id="qr-code-image" src="" alt="QR Code" />
+                    </div>
+                    <div class="form-group">
+                        <label>Secret Key (Manual Entry)</label>
+                        <input type="text" id="secret-key" readonly />
+                        <button
+                            class="copy-btn"
+                            onclick="copyToClipboard('secret-key')"
+                        >
+                            📋 Copy
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label>Verification Code</label>
+                        <input
+                            type="text"
+                            id="verification-code"
+                            placeholder="Enter 6-digit code"
+                            maxlength="6"
+                        />
+                        <span class="error-message" id="2fa-error"></span>
+                    </div>
+                    <button class="submit-btn" onclick="handleEnable2FA(event)">
+                        Enable 2FA
+                    </button>
+                    <div class="form-links">
+                        <a href="#" onclick="window.location.reload()"
+                            >Cancel</a
+                        >
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="secure-script.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", fetchProfile);
+
+            async function fetchProfile() {
+                const token =
+                    localStorage.getItem("sessionToken") ||
+                    sessionStorage.getItem("sessionToken");
+                if (!token) {
+                    window.location.href = "/login.html";
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/profile", {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById("dash-username").textContent =
+                            data.username;
+                        document.getElementById("dash-email").textContent =
+                            data.email;
+                        document.getElementById("dash-2fa").textContent =
+                            data.two_factor_enabled ? "Enabled" : "Disabled";
+
+                        if (!data.two_factor_enabled) {
+                            const btn =
+                                document.getElementById("btn-enable-2fa");
+                            btn.style.display = "block";
+                        }
+                    } else {
+                        handleLogout();
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            async function handleLogout() {
+                const token =
+                    localStorage.getItem("sessionToken") ||
+                    sessionStorage.getItem("sessionToken");
+                if (token) {
+                    try {
+                        await fetch("/api/logout", {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}` },
+                        });
+                    } catch (e) {}
+                }
+                localStorage.removeItem("sessionToken");
+                sessionStorage.removeItem("sessionToken");
+                currentSession.sessionToken = null;
+                window.location.href = "/login.html";
+            }
+
+            async function enable2FAFromDashboard() {
+                const token =
+                    localStorage.getItem("sessionToken") ||
+                    sessionStorage.getItem("sessionToken");
+                try {
+                    const response = await fetch("/api/setup-2fa", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ sessionToken: token }),
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.ok) {
+                        document.getElementById("qr-code-image").src =
+                            data.qrCode;
+                        document.getElementById("secret-key").value =
+                            data.secret;
+
+                        document
+                            .querySelectorAll(".form-section")
+                            .forEach((f) => f.classList.remove("active"));
+                        document
+                            .getElementById("setup-2fa-form")
+                            .classList.add("active");
+                    } else {
+                        alert(data.message || "Error setting up 2FA");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            async function handleChangePassword() {
+                const currentPassword =
+                    document.getElementById("current-password").value;
+                const newPassword =
+                    document.getElementById("new-password").value;
+                const token =
+                    localStorage.getItem("sessionToken") ||
+                    sessionStorage.getItem("sessionToken");
+
+                if (!currentPassword || !newPassword) {
+                    alert("Please fill out both password fields");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/change-password", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ currentPassword, newPassword }),
+                    });
+                    const data = await response.json();
+                    alert(data.message);
+                    if (data.ok) {
+                        document.getElementById("current-password").value = "";
+                        document.getElementById("new-password").value = "";
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        </script>
+    </body>
+</html>

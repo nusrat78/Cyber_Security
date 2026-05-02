@@ -820,12 +820,14 @@ app.post('/api/verify-2fa', async (req, res) => {
   res.status(result.status).json(result.data);
 });
 
-app.post('/api/setup-2fa', async (req, res) => {
+app.post('/api/setup-2fa', authenticateUser, async (req, res) => {
+  req.body.userId = req.userId;
   const result = await handleSetup2FA(req.body);
   res.status(result.status).json(result.data);
 });
 
-app.post('/api/enable-2fa', async (req, res) => {
+app.post('/api/enable-2fa', authenticateUser, async (req, res) => {
+  req.body.userId = req.userId;
   const result = await handleEnable2FA(req.body);
   res.status(result.status).json(result.data);
 });
@@ -840,7 +842,82 @@ app.post('/api/reset-password', async (req, res) => {
   res.status(result.status).json(result.data);
 });
 
-// 404 handler
+// --- ADDED ENDPOINTS ---
+async function authenticateUser(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ ok: false, message: 'Unauthorized' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const sessionRes = db.exec("SELECT user_id, expires_at FROM sessions WHERE session_token = ?", [token]);
+    if (!sessionRes || sessionRes.length === 0 || sessionRes[0].values.length === 0) {
+      return res.status(401).json({ ok: false, message: 'Invalid session' });
+    }
+    const session = sessionRes[0].values[0];
+    const userId = session[0];
+    const expiresAt = session[1];
+    if (new Date() > new Date(expiresAt)) {
+      db.run("DELETE FROM sessions WHERE session_token = ?", [token]);
+      return res.status(401).json({ ok: false, message: 'Session expired' });
+    }
+    req.userId = userId;
+    req.sessionToken = token;
+    next();
+  } catch (err) {
+    return res.status(500).json({ ok: false, message: 'Server error' });
+  }
+}
+
+app.get('/api/profile', authenticateUser, async (req, res) => {
+  try {
+    const userRes = db.exec("SELECT username, email, two_factor_enabled FROM users WHERE id = ?", [req.userId]);
+    if (!userRes || userRes.length === 0) {
+      return res.status(404).json({ ok: false, message: 'User not found' });
+    }
+    const user = userRes[0].values[0];
+    res.json({
+      ok: true,
+      username: user[0],
+      email: user[1],
+      two_factor_enabled: !!user[2]
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+app.post('/api/logout', authenticateUser, async (req, res) => {
+  try {
+    db.run("DELETE FROM sessions WHERE session_token = ?", [req.sessionToken]);
+    res.json({ ok: true, message: 'Logged out successfully' });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+app.post('/api/change-password', authenticateUser, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ ok: false, message: 'Missing fields' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ ok: false, message: 'Password too short' });
+  }
+  try {
+    const userRes = db.exec("SELECT password FROM users WHERE id = ?", [req.userId]);
+    if (!userRes || userRes.length === 0) return res.status(404).json({ ok: false, message: 'User not found' });
+    const user = userRes[0].values[0];
+    const match = await bcrypt.compare(currentPassword, user[0]);
+    if (!match) return res.status(400).json({ ok: false, message: 'Current password incorrect' });
+    
+    const hashed = await bcrypt.hash(newPassword, 12);
+    db.run("UPDATE users SET password = ?, password_changed_at = CURRENT_TIMESTAMP WHERE id = ?", [hashed, req.userId]);
+    res.json({ ok: true, message: 'Password updated successfully' });
+  } catch(err) {
+    res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
 app.use((req, res) => {
   res.status(404).json({ ok: false, message: 'Not Found' });
 });
