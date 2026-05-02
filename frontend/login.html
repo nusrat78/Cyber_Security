@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login - Enterprise Security</title>
+    <link rel="stylesheet" href="secure-styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Background -->
+        <div class="background">
+            <div class="stars"></div>
+            <div class="forest"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="form-container">
+            <!-- Login Form -->
+            <div class="form-section active" id="login-form">
+                <h1>🔐 Secure Login</h1>
+
+                <div class="form-group">
+                    <label>Username or Email</label>
+                    <input type="text" id="login-username" placeholder="john_doe or john@example.com">
+                    <span class="error-message" id="login-username-error"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="login-password" placeholder="Enter password">
+                        <button type="button" class="toggle-password" onclick="togglePassword('login-password')">👁️</button>
+                    </div>
+                    <span class="error-message" id="login-password-error"></span>
+                    <div class="password-requirements">
+                        <small>✓ Min 8 characters • Uppercase • Lowercase • Numbers • Special chars</small>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="remember-device">
+                    <label for="remember-device">Remember this device for 30 days</label>
+                </div>
+
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="agree-terms">
+                    <label for="agree-terms">I agree to Terms of Service</label>
+                </div>
+
+                <button class="submit-btn" onclick="handleLogin(event)">Login</button>
+
+                <div class="success-message" id="login-success"></div>
+                <div class="warning-message" id="login-warning"></div>
+
+                <div class="form-links">
+                    <a href="#" onclick="showForm('forgot-password-form')">Forgot Password?</a>
+                    <span class="divider">•</span>
+                    <a href="register.html">Create Account</a>
+                </div>
+            </div>
+
+            <!-- 2FA Setup Form -->
+            <div class="form-section" id="setup-2fa-form">
+                <h1>🔐 Two-Factor Authentication</h1>
+                <p class="subtitle">Secure Your Account</p>
+
+                <p class="info-text">Two-factor authentication adds an extra layer of security to your account.</p>
+
+                <div class="qr-code-container">
+                    <img id="qr-code-image" src="" alt="QR Code">
+                </div>
+
+                <div class="form-group">
+                    <label>Secret Key (Manual Entry)</label>
+                    <input type="text" id="secret-key" readonly>
+                    <button class="copy-btn" onclick="copyToClipboard('secret-key')">📋 Copy</button>
+                </div>
+
+                <p class="info-text">Scan the QR code with your authenticator app (Google Authenticator, Authy, Microsoft Authenticator).</p>
+
+                <div class="form-group">
+                    <label>Verification Code</label>
+                    <input type="text" id="verification-code" placeholder="Enter 6-digit code" maxlength="6">
+                    <span class="error-message" id="2fa-error"></span>
+                </div>
+
+                <button class="submit-btn" onclick="handleEnable2FA(event)">Enable 2FA</button>
+
+                <div class="form-links">
+                    <a href="#" onclick="showForm('login-form')">Skip for now</a>
+                </div>
+            </div>
+
+            <!-- Verify 2FA Form -->
+            <div class="form-section" id="verify-2fa-form">
+                <h1>🔐 Enter 2FA Code</h1>
+                <p class="subtitle">Two-Factor Verification</p>
+
+                <p class="info-text">Enter the 6-digit code from your authenticator app.</p>
+
+                <div class="form-group">
+                    <label>Authenticator Code</label>
+                    <input type="text" id="verify-2fa-code" placeholder="000000" maxlength="6" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    <span class="error-message" id="verify-2fa-error"></span>
+                </div>
+
+                <button class="submit-btn" onclick="handleVerify2FA(event)">Verify</button>
+
+                <div class="form-links">
+                    <a href="#" onclick="showForm('login-form')">Back</a>
+                </div>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div class="form-section" id="forgot-password-form">
+                <h1>🔑 Password Recovery</h1>
+                <p class="subtitle">Reset Your Password</p>
+
+                <div class="info-box">
+                    <p>Enter your email address and we'll send you a link to reset your password.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="forgot-email" placeholder="your@email.com">
+                    <span class="error-message" id="forgot-email-error"></span>
+                </div>
+
+                <button class="submit-btn" onclick="handleForgotPassword(event)">Send Reset Link</button>
+
+                <div class="success-message" id="forgot-success"></div>
+
+                <div class="form-links">
+                    <a href="#" onclick="showForm('login-form')">Back to Login</a>
+                </div>
+            </div>
+
+            <!-- Reset Password Form -->
+            <div class="form-section" id="reset-password-form">
+                <h1>🔑 Set New Password</h1>
+                <p class="subtitle">Create a New Password</p>
+
+                <div class="form-group">
+                    <label>New Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="reset-password" placeholder="New password" oninput="checkPasswordStrength()">
+                        <button type="button" class="toggle-password" onclick="togglePassword('reset-password')">👁️</button>
+                    </div>
+                    <span class="error-message" id="reset-password-error"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="reset-confirm-password" placeholder="Confirm password">
+                        <button type="button" class="toggle-password" onclick="togglePassword('reset-confirm-password')">👁️</button>
+                    </div>
+                    <span class="error-message" id="reset-confirm-password-error"></span>
+                </div>
+
+                <button class="submit-btn" onclick="handleResetPassword(event)">Reset Password</button>
+
+                <div class="success-message" id="reset-success"></div>
+
+                <div class="form-links">
+                    <a href="#" onclick="showForm('login-form')">Back to Login</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="secure-script.js"></script>
+</body>
+</html>
