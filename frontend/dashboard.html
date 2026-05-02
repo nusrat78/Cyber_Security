@@ -89,9 +89,8 @@
                                 style="margin-top: 10px; padding: 10px"
                                 onclick="enable2FAFromDashboard()"
                                 id="btn-enable-2fa"
-                                style="display: none"
                             >
-                                Enable 2FA
+                                Change 2FA
                             </button>
                         </div>
                         <div class="card" style="grid-column: 1 / -1">
@@ -147,7 +146,7 @@
                         <span class="error-message" id="2fa-error"></span>
                     </div>
                     <button class="submit-btn" onclick="handleEnable2FA(event)">
-                        Enable 2FA
+                        Update 2FA
                     </button>
                     <div class="form-links">
                         <a href="#" onclick="window.location.reload()"
@@ -186,9 +185,17 @@
                             data.two_factor_enabled ? "Enabled" : "Disabled";
 
                         if (!data.two_factor_enabled) {
-                            const btn =
-                                document.getElementById("btn-enable-2fa");
-                            btn.style.display = "block";
+                            document.getElementById("dash-2fa").textContent =
+                                "Disabled";
+                            document.getElementById(
+                                "btn-enable-2fa",
+                            ).textContent = "Enable 2FA";
+                        } else {
+                            document.getElementById("dash-2fa").textContent =
+                                "Enabled";
+                            document.getElementById(
+                                "btn-enable-2fa",
+                            ).textContent = "Change 2FA";
                         }
                     } else {
                         handleLogout();
