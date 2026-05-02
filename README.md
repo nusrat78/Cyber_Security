@@ -66,6 +66,43 @@ Cyber_Security/
 ✅ Session timeout (30 minutes)
 ✅ Account lockout after failed attempts
 
+## 🔐 Security Implementation Map
+
+The table below shows where each security control is implemented, how it works, and how you can verify it in this project.
+
+| Security control | Where it is implemented | How it works | How to check it |
+| --- | --- | --- | --- |
+| Username/password login | `backend/server-express.js` (`handleRegister`, `handleLogin`) and `frontend/secure-script.js` | Registration collects username, email, and password; login compares credentials against the stored bcrypt hash before any session is created. | Try registering or logging in through the UI, then inspect the backend response and the SQLite database records. |
+| Password hashing | `backend/server-express.js` (`validatePasswordStrength`, `handleRegister`, `handleResetPassword`, `handleChangePassword`) | Passwords are never stored in plain text. They are hashed with `bcrypt.hash(password, 12)` and verified with `bcrypt.compare(...)`. | Open `backend/auth.db` and confirm the password column contains bcrypt hashes that start with `$2b$`. |
+| Minimum password length and strength | `backend/server-express.js` (`PASSWORD_MIN_LENGTH = 8`, `validatePasswordStrength`) and `frontend/secure-script.js` (`checkPasswordStrength`) | The app requires at least 8 characters plus lowercase, uppercase, number, and special character rules. Frontend and backend both enforce this. | Try a short password such as `Ab1!` and confirm registration/reset is rejected with a weak-password message. |
+| Two-factor authentication (2FA) | `backend/server-express.js` (`handleRegister`, `handleCompleteRegistration2FA`, `handleVerify2FA`, `handleSetup2FA`, `handleEnable2FA`) | The server generates a TOTP secret with `speakeasy`, shows a QR code, and verifies a 6-digit OTP before completing registration or login. | Register a user, scan the QR code in an authenticator app, and verify the 6-digit code during setup and login. |
+| Session timeout | `backend/server-express.js` (`SESSION_TIMEOUT`, `authenticateUser`) and `frontend/secure-script.js` (`resetInactivityTimer`) | Sessions expire after 30 minutes. The frontend also logs the user out after 30 minutes of inactivity. | Leave the app idle for 30 minutes or inspect the `sessions` table and confirm the expiry time is enforced. |
+| Timeout after failed attempts / account lockout | `backend/server-express.js` (`MAX_LOGIN_ATTEMPTS`, `LOCKOUT_TIME`, `handleLogin`) | After 3 failed logins, the account is locked for 15 minutes by storing `failed_attempts` and `locked_until` in the `users` table. | Enter the wrong password 3 times and confirm the next login returns a lockout message. |
+| Password recovery | `backend/server-express.js` (`handleForgotPassword`, `handleResetPassword`) and `frontend/secure-script.js` | A secure reset token is generated, stored in `password_resets`, and emailed to the registered address. The reset link expires after 1 hour. | Request a reset from the UI and check the server console or SMTP inbox for the email containing the tokenized reset link. |
+| New device login notification | `backend/server-express.js` (`login_devices`, `handleLogin`, `sendEmail`) | The server tracks device IDs, user agent, and IP address. If a login comes from a new device, it sends an email alert. | Log in from a browser/device that does not already have the stored `deviceId` and check for the "New Device Login Notification" email. |
+| SQL injection protection | `backend/server-express.js` (`db.run`, `db.exec` with `?` placeholders) | Queries use parameterized statements, so user input is treated as data and not executable SQL. | Try input such as `' OR '1'='1` in username/email fields and confirm it is rejected or treated as literal text. |
+| XSS protection | `backend/server-express.js` (`sanitizeInput`, `containsUnsafeHtmlChars`, `escapeHtml`, security headers) and `frontend/secure-script.js` (`sanitizeInput`, `safeText`) | The app rejects unsafe HTML characters, sanitizes input, and sets browser security headers like `Content-Security-Policy` and `X-XSS-Protection`. | Enter `<script>alert(1)</script>` in a form field and confirm it is rejected or rendered as plain text. |
+| CSRF protection | `backend/server-express.js` (`sessions.csrf_token`, `handleLogin`) and `frontend/secure-script.js` (`addCSRFHeader`) | A CSRF token is created on login, stored with the session, and added to protected requests from the client. | Inspect the login response for `csrfToken`, then confirm state-changing requests include the `X-CSRF-Token` header. |
+
+### Important Notes
+
+- This project uses **email** for login alerts and password recovery. SMS notification is not implemented in the current codebase.
+- The strongest security checks live in `backend/server-express.js`; the frontend adds user-friendly validation but the backend is the source of truth.
+- The database is SQLite, so you can inspect `backend/auth.db` directly to verify hashed passwords, lockout state, sessions, and reset tokens.
+
+### Quick Verification Checklist
+
+Use this list when you want to confirm the controls are active:
+
+- Password hash check: look for `$2b$` values in `users.password`
+- 2FA check: complete setup with an authenticator app and verify a 6-digit OTP
+- Lockout check: fail login 3 times and confirm a 15-minute lockout
+- Recovery check: request a reset and confirm the tokenized email is generated
+- New device check: log in from a fresh browser/device and confirm an alert email is sent
+- SQL injection check: try input like `' OR '1'='1` and confirm it does not bypass auth
+- XSS check: try `<script>alert(1)</script>` and confirm it is sanitized or rejected
+- CSRF check: confirm the login response includes a CSRF token and protected requests send it back
+
 ## 🚀 Getting Started
 
 ### Prerequisites
